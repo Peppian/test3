@@ -117,4 +117,4 @@ if final_params:
 
     st.subheader("Query untuk Playground SerpApi:")
     st.code(final_params['q'], language='text')
-    st.caption("
+    st.caption("Salin query di atas dan coba di playground SerpApi.")
