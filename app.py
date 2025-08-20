@@ -95,9 +95,11 @@ def analyze_with_llm(context_text, product_name, api_key):
     try:
         response = requests.post(
             url="https://openrouter.ai/api/v1/chat/completions",
-            headers={"Authorization": f"Bearer {api_key}"},
+            headers={"Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+            },
             data=json.dumps({
-                "model": "LLM_MODEL",
+                "model": st.secrets.get("LLM_MODEL"),
                 "messages": [{"role": "user", "content": prompt}],
                 "max_tokens": 250 # Membatasi output token untuk kecepatan
             })
