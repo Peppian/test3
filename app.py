@@ -104,6 +104,7 @@ def analyze_with_llm(context_text, product_name, api_key):
     4. Sertakan analisis singkat terkait produk dan harga yang disarankan.
     5. Berikan rekomendasi harga berdasarkan temuan Anda.
     6. JAWABAN HARUS DALAM BENTUK TEKS BIASA YANG JELAS DAN INFORMATIF, BUKAN JSON.
+    7. Jawaban dalam format paragraf narasi yang mudah dibaca.
 
     JANGAN GUNAKAN FORMAT JSON SAMA SEKALI. HANYA BERIKAN TEKS ANALISIS.
     """
@@ -117,7 +118,7 @@ def analyze_with_llm(context_text, product_name, api_key):
             data=json.dumps({
                 "model": llm_model,
                 "messages": [{"role": "user", "content": prompt}],
-                "max_tokens": 800,
+                "max_tokens": 500,
                 "temperature": 0.3
             })
         )
