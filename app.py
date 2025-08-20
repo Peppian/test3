@@ -1,6 +1,6 @@
 import streamlit as st
 
-# --- Kumpulan Fungsi Pembuat Query (Tidak ada perubahan di sini) ---
+# --- Kumpulan Fungsi Pembuat Query ---
 
 def build_smartphone_query(brand, model, spec, time_filter):
     """Membangun query optimal untuk kategori Smartphone."""
@@ -44,7 +44,6 @@ st.write(
 
 st.sidebar.header("Pengaturan Pencarian")
 
-# --- PERUBAHAN 1: Mengubah nama kategori ---
 category = st.sidebar.selectbox(
     "1. Pilih Kategori Barang",
     ["Smartphone", "Scrap", "Lainnya (Umum)"]
@@ -76,19 +75,19 @@ if category == "Smartphone":
     if st.button("Generate Query"):
         final_params = build_smartphone_query(brand, model, spec, time_filter_value)
 
-# --- PERUBAHAN 2: Logika baru untuk kategori "Scrap" ---
 elif category == "Scrap":
     st.header("♻️ Detail Limbah (Scrap)")
     
-    # Daftar pilihan jenis limbah
     scrap_options = [
         "Besi Tua", "Tembaga", "Aluminium", "Kuningan", 
         "Aki Bekas", "Kabel Bekas", "Minyak Jelantah", "Oli Bekas", 
         "Kardus Bekas", "Botol Plastik PET", "Komputer Bekas"
     ]
-    
     scrap_type = st.selectbox("Pilih Jenis Limbah", scrap_options)
-    unit = st.text_input("Satuan Harga (Contoh: per kg, per liter, per drum, per unit)", "per kg")
+    
+    # --- PERUBAHAN DI SINI ---
+    unit_options = ["per kg", "per liter", "per drum", "per unit", "per ton", "per bal"]
+    unit = st.selectbox("Pilih Satuan Harga", unit_options)
 
     if st.button("Generate Query"):
         final_params = build_scrap_query(scrap_type, unit, time_filter_value)
@@ -107,7 +106,7 @@ elif category == "Lainnya (Umum)":
         if time_filter_value != "Semua Waktu":
             final_params["tbs"] = time_filter_value
 
-# --- Tampilkan Hasil (Tidak ada perubahan di sini) ---
+# --- Tampilkan Hasil ---
 
 if final_params:
     st.balloons()
@@ -118,4 +117,4 @@ if final_params:
 
     st.subheader("Query untuk Playground SerpApi:")
     st.code(final_params['q'], language='text')
-    st.caption("Salin query di atas dan coba di playground SerpApi.")
+    st.caption("
