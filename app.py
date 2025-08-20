@@ -101,17 +101,31 @@ def analyze_with_llm(context_text, product_name, api_key):
             data=json.dumps({
                 "model": st.secrets.get("LLM_MODEL"),
                 "messages": [{"role": "user", "content": prompt}],
-                "max_tokens": 250 # Membatasi output token untuk kecepatan
+                "max_tokens": 350 # Membatasi output token untuk kecepatan
             })
         )
         response.raise_for_status()
+        
         llm_response_str = response.json()['choices'][0]['message']['content']
-        return json.loads(llm_response_str)
+
+        # --- PERUBAHAN 2: Logika pembersihan respons ---
+        # Cari blok JSON pertama yang valid di dalam respons
+        match = re.search(r'\{.*\}', llm_response_str, re.DOTALL)
+        if match:
+            json_part = match.group(0)
+            return json.loads(json_part)
+        else:
+            # Jika tidak ada blok JSON sama sekali, baru laporkan error
+            st.error("AI tidak memberikan respons dalam format JSON yang bisa dikenali.")
+            st.code(llm_response_str, language='text')
+            return None
+
     except requests.exceptions.RequestException as e:
         st.error(f"Gagal menghubungi OpenRouter API: {e}")
         return None
-    except (json.JSONDecodeError, KeyError):
-        st.error("Gagal mengolah respons dari AI. Format tidak sesuai.")
+    except (json.JSONDecodeError, KeyError, IndexError):
+        st.error("Gagal mengolah respons dari AI. Format tidak sesuai atau tidak lengkap.")
+        # Tampilkan respons mentah untuk debugging
         st.code(llm_response_str, language='text')
         return None
 
