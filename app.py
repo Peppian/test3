@@ -69,6 +69,26 @@ def extract_text_for_llm(serpapi_data):
                 texts.append(" | ".join(row))
     return "\n".join(filter(None, texts))
 
+def extract_prices_from_text(text):
+    """Fungsi untuk mengekstrak harga dari teks menggunakan regex"""
+    # Pola regex untuk menemukan format harga Indonesia (Rp. 100.000, Rp 500000, dll)
+    price_pattern = r'Rp\s*\.?\s*(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)'
+    prices = []
+    
+    # Temukan semua kecocokan dengan pola harga
+    matches = re.findall(price_pattern, text)
+    
+    for match in matches:
+        # Hapus titik (pemisah ribuan) dan ganti koma dengan titik untuk desimal
+        price_str = match.replace('.', '').replace(',', '.')
+        try:
+            price = float(price_str)
+            prices.append(price)
+        except ValueError:
+            continue
+    
+    return prices
+
 def analyze_with_llm(context_text, product_name, api_key):
     """Mengirim teks yang sudah diproses ke OpenRouter untuk dianalisis."""
     prompt = f"""
@@ -82,18 +102,14 @@ def analyze_with_llm(context_text, product_name, api_key):
     ---
 
     INSTRUKSI:
-    1. Berdasarkan KONTEKS PENCARIAN, ekstrak semua harga relevan untuk PRODUK YANG DICARI.
+    1. Berdasarkan KONTEKS PENCARIAN, analisis harga pasaran untuk PRODUK YANG DICARI.
     2. Abaikan harga aksesoris atau barang lain yang tidak relevan.
-    3. Berikan rangkuman singkat mengenai harga pasaran.
-    4. Berikan analisis singkat terkait produk dan harga yang disarankan.
-    5. JAWABAN HARUS HANYA BERUPA JSON TANPA TEKS LAINNYA. JANGAN GUNAKAN MARKDOWN ATAU KODE BLOK. HANYA JSON.
+    3. Berikan rangkuman singkat mengenai harga pasaran dalam format yang mudah dibaca.
+    4. Sertakan analisis singkat terkait produk dan harga yang disarankan.
+    5. Berikan rekomendasi harga berdasarkan temuan Anda.
+    6. JAWABAN HARUS DALAM BENTUK TEKS BIAASA YANG JELAS DAN INFORMATIF, BUKAN JSON.
 
-    FORMAT JAWABAN JSON:
-    {{
-      "rangkuman_harga": "Harga pasaran untuk {product_name} umumnya adalah Rp [harga yang disarankan].",
-      "analisis_singkat": "[analisis singkat]",
-      "harga_ditemukan": [list angka harga]
-    }}
+    JANGAN GUNAKAN FORMAT JSON SAMA SEKALI. HANYA BERIKAN TEKS ANALISIS.
     """
     try:
         response = requests.post(
@@ -105,43 +121,19 @@ def analyze_with_llm(context_text, product_name, api_key):
             data=json.dumps({
                 "model": st.secrets.get("LLM_MODEL"),
                 "messages": [{"role": "user", "content": prompt}],
-                "max_tokens": 500,
-                "temperature": 0.1  # Mengurangi kreativitas untuk hasil yang lebih konsisten
+                "max_tokens": 800,
+                "temperature": 0.3
             })
         )
         response.raise_for_status()
         
-        llm_response_str = response.json()['choices'][0]['message']['content']
-
-        # Bersihkan respons dari karakter khusus dan ekstrak JSON
-        llm_response_str = llm_response_str.strip()
-        
-        # Hapus kemungkinan markdown code block
-        if llm_response_str.startswith("```json"):
-            llm_response_str = llm_response_str[7:]
-        if llm_response_str.endswith("```"):
-            llm_response_str = llm_response_str[:-3]
-        llm_response_str = llm_response_str.strip()
-        
-        # Coba parsing JSON
-        try:
-            return json.loads(llm_response_str)
-        except json.JSONDecodeError:
-            # Jika gagal, coba ekstrak JSON menggunakan regex
-            json_match = re.search(r'\{.*\}', llm_response_str, re.DOTALL)
-            if json_match:
-                return json.loads(json_match.group())
-            else:
-                st.error("AI tidak memberikan respons dalam format JSON yang valid.")
-                st.code(llm_response_str, language='text')
-                return None
+        return response.json()['choices'][0]['message']['content']
 
     except requests.exceptions.RequestException as e:
         st.error(f"Gagal menghubungi OpenRouter API: {e}")
         return None
     except (KeyError, IndexError) as e:
         st.error(f"Gagal mengolah respons dari AI: {e}")
-        st.code(llm_response_str, language='text')
         return None
 
 # --- BAGIAN 3: UI STREAMLIT ---
@@ -213,6 +205,9 @@ if submitted:
                 context_text = extract_text_for_llm(serpapi_data)
 
                 if context_text:
+                    # Ekstrak harga dari teks untuk analisis statistik
+                    extracted_prices = extract_prices_from_text(context_text)
+                    
                     # 4. Panggil OpenRouter (AI)
                     st.info("Langkah 3/3: Mengirim data ke AI untuk analisis harga...")
                     ai_analysis = analyze_with_llm(context_text, product_name_display, OPENROUTER_API_KEY)
@@ -221,27 +216,29 @@ if submitted:
                         # 5. Tampilkan Hasil
                         st.balloons()
                         st.success("Analisis Harga Selesai!")
-                        st.subheader(f"📊 Rangkuman Harga untuk {product_name_display}")
+                        st.subheader(f"📊 Analisis Harga untuk {product_name_display}")
                         
-                        st.markdown(ai_analysis.get("rangkuman_harga", "Tidak ada rangkuman tersedia."))
+                        # Tampilkan analisis dari AI
+                        st.markdown("### Analisis AI")
+                        st.write(ai_analysis)
                         
-                        if "analisis_singkat" in ai_analysis:
-                            st.markdown("### Analisis Singkat")
-                            st.write(ai_analysis["analisis_singkat"])
-                        
-                        harga_list = ai_analysis.get("harga_ditemukan", [])
-                        if harga_list and len(harga_list) > 0:
-                            # Gunakan numpy untuk analisis sederhana jika ada harga
-                            harga_rata_rata = np.mean(harga_list)
-                            harga_median = np.median(harga_list)
-                            harga_terendah = np.min(harga_list)
-                            harga_tertinggi = np.max(harga_list)
-
+                        # Tampilkan statistik harga yang diekstrak
+                        if extracted_prices:
+                            st.markdown("### Statistik Harga yang Ditemukan")
+                            
+                            harga_rata_rata = np.mean(extracted_prices)
+                            harga_median = np.median(extracted_prices)
+                            harga_terendah = np.min(extracted_prices)
+                            harga_tertinggi = np.max(extracted_prices)
+                            
                             col1, col2, col3, col4 = st.columns(4)
                             col1.metric("Harga Rata-rata", f"Rp {int(harga_rata_rata):,}")
                             col2.metric("Harga Tengah (Median)", f"Rp {int(harga_median):,}")
                             col3.metric("Harga Terendah", f"Rp {int(harga_terendah):,}")
                             col4.metric("Harga Tertinggi", f"Rp {int(harga_tertinggi):,}")
-
-                        with st.expander("Lihat Respons JSON dari AI"):
-                            st.json(ai_analysis)
+                            
+                            # Tampilkan distribusi harga
+                            st.markdown("### Distribusi Harga")
+                            st.bar_chart(extracted_prices)
+                        else:
+                            st.warning("Tidak dapat menemukan harga yang dapat diekstrak dari data pencarian.")
