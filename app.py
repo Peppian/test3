@@ -3,16 +3,22 @@ import streamlit as st
 # --- Kumpulan Fungsi Pembuat Query ---
 
 def build_general_query(part1, part2, part3, time_filter):
-    """Membangun query seragam untuk barang umum."""
+    """
+    Membangun query seragam untuk barang umum (Smartphone, Laptop, dll.).
+    Strategi ini menggunakan query presisi tinggi yang terbukti efektif.
+    """
     # Model/Nama Spesifik (part2) selalu di dalam tanda kutip untuk presisi
     search_keywords = f'{part1} "{part2}" {part3}'
     
+    # Kata kunci standar untuk memastikan hasil yang relevan
     used_keywords = "(bekas|second|seken)"
     negative_keywords = "-BNIB -segel -resmi -baru -official"
     negative_url_patterns = "-inurl:search -inurl:shop"
     
+    # Menggabungkan semua komponen menjadi satu string query yang kuat
     query = f'{search_keywords} {used_keywords} {negative_keywords} {negative_url_patterns}'
     
+    # Membuat dictionary parameter untuk dikirim ke SerpApi
     params = {
         "q": query.strip(),
         "engine": "google",
@@ -21,6 +27,7 @@ def build_general_query(part1, part2, part3, time_filter):
         "location": "Jakarta, Jakarta, Indonesia"
     }
     
+    # Menambahkan filter waktu jika dipilih oleh pengguna
     if time_filter != "Semua Waktu":
         params["tbs"] = time_filter
         
@@ -50,15 +57,18 @@ st.write(
 
 st.sidebar.header("Pengaturan Pencarian")
 
-# --- PERUBAHAN: Menambahkan kategori baru ---
+# Daftar kategori yang didukung
 category = st.sidebar.selectbox(
     "1. Pilih Kategori Barang",
     ["Smartphone", "Laptop", "Kamera", "Tanaman Hias", "Scrap", "Lainnya (Umum)"]
 )
 
+# Opsi filter waktu
 time_filter_options = {
-    "Semua Waktu": "Semua Waktu", "Setahun Terakhir": "qdr:y",
-    "Sebulan Terakhir": "qdr:m", "Seminggu Terakhir": "qdr:w"
+    "Semua Waktu": "Semua Waktu", 
+    "Setahun Terakhir": "qdr:y",
+    "Sebulan Terakhir": "qdr:m", 
+    "Seminggu Terakhir": "qdr:w"
 }
 selected_time_filter = st.sidebar.selectbox(
     "2. Filter Waktu (Opsional)",
@@ -71,9 +81,10 @@ time_filter_value = time_filter_options[selected_time_filter]
 
 final_params = None
 
+# Blok ini menangani semua kategori barang umum dengan input 3 bagian
 if category in ["Smartphone", "Laptop", "Kamera", "Tanaman Hias"]:
     
-    # Label dinamis berdasarkan kategori
+    # Label dan placeholder akan berubah sesuai kategori yang dipilih
     if category == "Smartphone":
         st.header("📱 Detail Smartphone")
         label1, placeholder1 = "Merek", "Apple"
@@ -103,7 +114,6 @@ if category in ["Smartphone", "Laptop", "Kamera", "Tanaman Hias"]:
         final_params = build_general_query(part1, part2, part3, time_filter_value)
 
 elif category == "Scrap":
-    # ... (Bagian scrap tidak berubah) ...
     st.header("♻️ Detail Limbah (Scrap)")
     scrap_options = ["Besi Tua", "Tembaga", "Aluminium", "Kuningan", "Aki Bekas", "Kabel Bekas", "Minyak Jelantah", "Oli Bekas", "Kardus Bekas", "Botol Plastik PET", "Komputer Bekas"]
     scrap_type = st.selectbox("Pilih Jenis Limbah", scrap_options)
@@ -113,7 +123,6 @@ elif category == "Scrap":
         final_params = build_scrap_query(scrap_type, unit, time_filter_value)
         
 elif category == "Lainnya (Umum)":
-    # ... (Bagian umum tidak berubah) ...
     st.header("📦 Pencarian Umum")
     keywords = st.text_input("Masukkan Kata Kunci", "Meja kantor bekas")
     if st.button("Generate Query"):
