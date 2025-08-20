@@ -48,7 +48,7 @@ def build_scrap_query(scrap_type, unit, time_filter):
 def build_common_query(keywords, time_filter):
     """Membangun query fleksibel untuk BARANG UMUM."""
     # Untuk barang umum, kita gabungkan keyword dengan kata "bekas"
-    query = f'{keywords} (bekas|second|seken)'
+    query = f'jual {keywords} (bekas|second|seken)'
     params = {
         "q": query.strip(), "engine": "google", "gl": "id", "hl": "id",
     }
