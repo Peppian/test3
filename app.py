@@ -84,50 +84,63 @@ def analyze_with_llm(context_text, product_name, api_key):
     INSTRUKSI:
     1. Berdasarkan KONTEKS PENCARIAN, ekstrak semua harga relevan untuk PRODUK YANG DICARI.
     2. Abaikan harga aksesoris atau barang lain yang tidak relevan.
-    3. Buat rangkuman singkat mengenai harga pasaran.
-    4. Berikan JAWABAN HANYA dalam format JSON yang valid. Jangan tambahkan teks atau penjelasan lain di luar JSON.
-    5. Berikan analisis singkat terkait produk dan harga yang disarankan.
+    3. Berikan rangkuman singkat mengenai harga pasaran.
+    4. Berikan analisis singkat terkait produk dan harga yang disarankan.
+    5. JAWABAN HARUS HANYA BERUPA JSON TANPA TEKS LAINNYA. JANGAN GUNAKAN MARKDOWN ATAU KODE BLOK. HANYA JSON.
 
     FORMAT JAWABAN JSON:
     {{
-      "rangkuman_harga": "Harga pasaran untuk {product_name} umumnya adalah Rp [harga yang disarankan]."
-      "[analisis singkat]
+      "rangkuman_harga": "Harga pasaran untuk {product_name} umumnya adalah Rp [harga yang disarankan].",
+      "analisis_singkat": "[analisis singkat]",
+      "harga_ditemukan": [list angka harga]
     }}
     """
     try:
         response = requests.post(
             url="https://openrouter.ai/api/v1/chat/completions",
-            headers={"Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json"
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json"
             },
             data=json.dumps({
                 "model": st.secrets.get("LLM_MODEL"),
                 "messages": [{"role": "user", "content": prompt}],
-                "max_tokens": 350 # Membatasi output token untuk kecepatan
+                "max_tokens": 500,
+                "temperature": 0.1  # Mengurangi kreativitas untuk hasil yang lebih konsisten
             })
         )
         response.raise_for_status()
         
         llm_response_str = response.json()['choices'][0]['message']['content']
 
-        # --- PERUBAHAN 2: Logika pembersihan respons ---
-        # Cari blok JSON pertama yang valid di dalam respons
-        match = re.search(r'\{.*\}', llm_response_str, re.DOTALL)
-        if match:
-            json_part = match.group(0)
-            return json.loads(json_part)
-        else:
-            # Jika tidak ada blok JSON sama sekali, baru laporkan error
-            st.error("AI tidak memberikan respons dalam format JSON yang bisa dikenali.")
-            st.code(llm_response_str, language='text')
-            return None
+        # Bersihkan respons dari karakter khusus dan ekstrak JSON
+        llm_response_str = llm_response_str.strip()
+        
+        # Hapus kemungkinan markdown code block
+        if llm_response_str.startswith("```json"):
+            llm_response_str = llm_response_str[7:]
+        if llm_response_str.endswith("```"):
+            llm_response_str = llm_response_str[:-3]
+        llm_response_str = llm_response_str.strip()
+        
+        # Coba parsing JSON
+        try:
+            return json.loads(llm_response_str)
+        except json.JSONDecodeError:
+            # Jika gagal, coba ekstrak JSON menggunakan regex
+            json_match = re.search(r'\{.*\}', llm_response_str, re.DOTALL)
+            if json_match:
+                return json.loads(json_match.group())
+            else:
+                st.error("AI tidak memberikan respons dalam format JSON yang valid.")
+                st.code(llm_response_str, language='text')
+                return None
 
     except requests.exceptions.RequestException as e:
         st.error(f"Gagal menghubungi OpenRouter API: {e}")
         return None
-    except (json.JSONDecodeError, KeyError, IndexError):
-        st.error("Gagal mengolah respons dari AI. Format tidak sesuai atau tidak lengkap.")
-        # Tampilkan respons mentah untuk debugging
+    except (KeyError, IndexError) as e:
+        st.error(f"Gagal mengolah respons dari AI: {e}")
         st.code(llm_response_str, language='text')
         return None
 
@@ -212,10 +225,13 @@ if submitted:
                         
                         st.markdown(ai_analysis.get("rangkuman_harga", "Tidak ada rangkuman tersedia."))
                         
+                        if "analisis_singkat" in ai_analysis:
+                            st.markdown("### Analisis Singkat")
+                            st.write(ai_analysis["analisis_singkat"])
+                        
                         harga_list = ai_analysis.get("harga_ditemukan", [])
-                        if harga_list:
+                        if harga_list and len(harga_list) > 0:
                             # Gunakan numpy untuk analisis sederhana jika ada harga
-                            import numpy as np
                             harga_rata_rata = np.mean(harga_list)
                             harga_median = np.median(harga_list)
                             harga_terendah = np.min(harga_list)
