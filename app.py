@@ -2,37 +2,31 @@ import streamlit as st
 
 # --- Kumpulan Fungsi Pembuat Query ---
 
-def build_general_query(part1, part2, part3, exclusions, time_filter, category, use_condition_filter, use_url_filter):
+def build_branded_query(brand, model, spec, exclusions, time_filter, use_condition_filter, use_url_filter):
     """
-    Membangun query seragam untuk barang umum dengan filter opsional dan pengecualian.
+    Membangun query presisi tinggi khusus untuk BARANG BERMEREK.
     """
-    if category in ["Smartphone", "Laptop", "Kamera"]:
-        search_keywords = f'jual {part1} "{part2}" {part3}'
-    else:
-        search_keywords = f'jual {part1} {part2} {part3}'
+    # Model selalu di dalam tanda kutip untuk presisi
+    search_keywords = f'{brand} "{model}" {spec}'
     
     query_parts = [search_keywords, "(bekas|second|seken)"]
     
     # Filter ditambahkan secara kondisional
     if use_condition_filter:
-        query_parts.append("-BNIB -segel")
+        query_parts.append("-BNIB -segel -resmi -baru -official")
     
     if use_url_filter:
-        query_parts.append("-inurl:search -inurl:shop (site:tokopedia.com OR site:shopee.co.id OR site:olx.co.id)")
+        query_parts.append("-inurl:search -inurl:shop")
         
-    # --- PENYESUAIAN: Menambahkan kata kunci pengecualian dari input pengguna ---
+    # Menambahkan kata kunci pengecualian dari input pengguna
     if exclusions:
-        # Ubah "Max, Plus, Ultra" menjadi "-Max -Plus -Ultra"
         exclusion_keywords = " ".join([f"-{word.strip()}" for word in exclusions.split(',')])
         query_parts.append(exclusion_keywords)
         
     query = " ".join(query_parts)
     
     params = {
-        "q": query.strip(),
-        "engine": "google",
-        "gl": "id",
-        "hl": "id",
+        "q": query.strip(), "engine": "google", "gl": "id", "hl": "id",
         "location": "Jakarta, Jakarta, Indonesia"
     }
     
@@ -42,13 +36,21 @@ def build_general_query(part1, part2, part3, exclusions, time_filter, category, 
     return params
 
 def build_scrap_query(scrap_type, unit, time_filter):
-    """Membangun query optimal untuk kategori Scrap/Limbah."""
+    """Membangun query optimal untuk kategori SCRAP."""
     search_keywords = f'harga {scrap_type} bekas {unit}'
     params = {
-        "q": search_keywords.strip(),
-        "engine": "google",
-        "gl": "id",
-        "hl": "id",
+        "q": search_keywords.strip(), "engine": "google", "gl": "id", "hl": "id",
+    }
+    if time_filter != "Semua Waktu":
+        params["tbs"] = time_filter
+    return params
+
+def build_common_query(keywords, time_filter):
+    """Membangun query fleksibel untuk BARANG UMUM."""
+    # Untuk barang umum, kita gabungkan keyword dengan kata "bekas"
+    query = f'{keywords} (bekas|second|seken)'
+    params = {
+        "q": query.strip(), "engine": "google", "gl": "id", "hl": "id",
     }
     if time_filter != "Semua Waktu":
         params["tbs"] = time_filter
@@ -59,68 +61,56 @@ def build_scrap_query(scrap_type, unit, time_filter):
 st.set_page_config(page_title="Query Generator", layout="centered")
 st.title("🚀 SerpApi Query Generator")
 st.write(
-    "Gunakan alat ini untuk membuat query pencarian yang optimal. "
-    "Salin hasilnya dan uji coba secara gratis di playground website SerpApi."
+    "Alat bantu untuk membuat query pencarian yang optimal sebelum digunakan."
 )
 
 st.sidebar.header("Pengaturan Pencarian")
 
+# --- PERUBAHAN: Kategori disederhanakan menjadi 3 jenis ---
 category = st.sidebar.selectbox(
-    "1. Pilih Kategori Barang",
-    ["Smartphone", "Laptop", "Kamera", "Tanaman Hias", "Scrap", "Lainnya (Umum)"]
+    "1. Pilih Jenis Pencarian",
+    ["Barang Bermerek", "Barang Umum", "Scrap"]
 )
 
 time_filter_options = {
-    "Semua Waktu": "Semua Waktu", 
-    "Setahun Terakhir": "qdr:y",
-    "Sebulan Terakhir": "qdr:m", 
-    "Seminggu Terakhir": "qdr:w"
+    "Semua Waktu": "Semua Waktu", "Setahun Terakhir": "qdr:y",
+    "Sebulan Terakhir": "qdr:m", "Seminggu Terakhir": "qdr:w"
 }
 selected_time_filter = st.sidebar.selectbox(
-    "2. Filter Waktu",
-    options=list(time_filter_options.keys())
+    "2. Filter Waktu", options=list(time_filter_options.keys())
 )
 time_filter_value = time_filter_options[selected_time_filter]
 
-st.sidebar.subheader("Filter Lanjutan (Opsional)")
-use_condition_filter = st.sidebar.checkbox("Filter Kondisi (BNIB, baru, dll.)", value=True)
-use_url_filter = st.sidebar.checkbox("Filter URL (search, shop)", value=True)
-
+# Filter lanjutan hanya relevan untuk Barang Bermerek
+if category == "Barang Bermerek":
+    st.sidebar.subheader("Filter Lanjutan (Opsional)")
+    use_condition_filter = st.sidebar.checkbox("Filter Kondisi (BNIB, baru, dll.)", value=True)
+    use_url_filter = st.sidebar.checkbox("Filter URL (search, shop)", value=True)
+else:
+    use_condition_filter, use_url_filter = False, False
 
 # --- Input Dinamis Berdasarkan Kategori ---
-
 final_params = None
 
-if category in ["Smartphone", "Laptop", "Kamera", "Tanaman Hias"]:
+if category == "Barang Bermerek":
+    st.header("📱 Detail Barang Bermerek")
+    st.caption("Contoh: Smartphone, Laptop, Kamera, AC, Kulkas, dll.")
     
-    if category == "Smartphone":
-        st.header("📱 Detail Smartphone")
-        label1, placeholder1 = "Merek", "Apple"
-        label2, placeholder2 = "Model Inti", "iPhone 14 Pro"
-        label3, placeholder3 = "Spesifikasi", "256GB"
-        # --- PENYESUAIAN: Input baru untuk pengecualian ---
-        label4, placeholder4 = "Kecualikan Varian (pisahkan dengan koma)", "Max, Plus"
-    elif category == "Laptop":
-        st.header("💻 Detail Laptop")
-        label1, placeholder1 = "Merek", "Lenovo"
-        label2, placeholder2 = "Model / Seri", "Thinkpad T480"
-        label3, placeholder3 = "Spesifikasi (CPU/RAM, dll.)", "Core i7 16GB"
-        label4, placeholder4 = "Kecualikan Varian (Opsional)", "Yoga, Slim" # Contoh untuk laptop
-    # ... (Kategori lain bisa ditambahkan input pengecualian jika perlu) ...
-    else: # Default untuk Kamera & Tanaman Hias
-        label4 = None
-
-    part1 = st.text_input(label1, placeholder1)
-    part2 = st.text_input(label2, placeholder2)
-    part3 = st.text_input(label3, placeholder3)
-    
-    # Tampilkan input ke-4 hanya jika labelnya ada
-    exclusions = ""
-    if label4:
-        exclusions = st.text_input(label4, placeholder4)
+    brand = st.text_input("Merek", "Apple")
+    model = st.text_input("Model / Seri", "iPhone 15 Pro")
+    spec = st.text_input("Spesifikasi (Opsional)", "256GB")
+    exclusions = st.text_input("Kecualikan Varian (pisahkan koma)", "Max, Plus")
 
     if st.button("Generate Query"):
-        final_params = build_general_query(part1, part2, part3, exclusions, time_filter_value, category, use_condition_filter, use_url_filter)
+        final_params = build_branded_query(brand, model, spec, exclusions, time_filter_value, use_condition_filter, use_url_filter)
+
+elif category == "Barang Umum":
+    st.header("📦 Detail Barang Umum")
+    st.caption("Contoh: Bonsai Cemara Udang, Meja Kantor, Sepeda Polygon, dll.")
+    keywords = st.text_input("Masukkan Nama Barang", "Bonsai Cemara Udang Ukuran Medium")
+    
+    if st.button("Generate Query"):
+        final_params = build_common_query(keywords, time_filter_value)
 
 elif category == "Scrap":
     st.header("♻️ Detail Limbah (Scrap)")
@@ -130,14 +120,6 @@ elif category == "Scrap":
     unit = st.selectbox("Pilih Satuan Harga", unit_options)
     if st.button("Generate Query"):
         final_params = build_scrap_query(scrap_type, unit, time_filter_value)
-        
-elif category == "Lainnya (Umum)":
-    st.header("📦 Pencarian Umum")
-    keywords = st.text_input("Masukkan Kata Kunci", "Meja kantor bekas")
-    if st.button("Generate Query"):
-        final_params = {"q": keywords, "engine": "google", "gl": "id", "hl": "id"}
-        if time_filter_value != "Semua Waktu":
-            final_params["tbs"] = time_filter_value
 
 # --- Tampilkan Hasil ---
 if final_params:
