@@ -7,9 +7,9 @@ def build_general_query(part1, part2, part3, exclusions, time_filter, category, 
     Membangun query seragam untuk barang umum dengan filter opsional dan pengecualian.
     """
     if category in ["Smartphone", "Laptop", "Kamera"]:
-        search_keywords = f'{part1} "{part2}" {part3}'
+        search_keywords = f'jual {part1} "{part2}" {part3}'
     else:
-        search_keywords = f'{part1} {part2} {part3}'
+        search_keywords = f'jual {part1} {part2} {part3}'
     
     query_parts = [search_keywords, "(bekas|second|seken)"]
     
