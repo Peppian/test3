@@ -4,7 +4,7 @@ import re
 import json
 import numpy as np
 
-# --- BAGIAN 1: FUNGSI-FUNGSI PEMBUAT QUERY ---
+# --- BAGIAN 1: FUNGSI-FUNGSI PEMBUAT QUERY (Tidak ada perubahan) ---
 
 def build_branded_query(brand, model, spec, exclusions, time_filter, use_condition_filter, use_url_filter):
     """Membangun query presisi tinggi khusus untuk BARANG BERMEREK."""
@@ -49,7 +49,7 @@ def search_with_serpapi(params, api_key):
         response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException as e:
-        st.error(f"Gagal menghubungi API: {e}")
+        st.error(f"Gagal menghubungi SerpAPI: {e}")
         return None
 
 def extract_text_for_llm(serpapi_data):
@@ -71,26 +71,22 @@ def extract_text_for_llm(serpapi_data):
 
 def extract_prices_from_text(text):
     """Fungsi untuk mengekstrak harga dari teks menggunakan regex"""
-    # Pola regex untuk menemukan format harga Indonesia (Rp. 100.000, Rp 500000, dll)
     price_pattern = r'Rp\s*\.?\s*(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)'
     prices = []
-    
-    # Temukan semua kecocokan dengan pola harga
     matches = re.findall(price_pattern, text)
-    
     for match in matches:
-        # Hapus titik (pemisah ribuan) dan ganti koma dengan titik untuk desimal
         price_str = match.replace('.', '').replace(',', '.')
         try:
             price = float(price_str)
             prices.append(price)
         except ValueError:
             continue
-    
     return prices
 
+# --- ⭐ PERUBAHAN DI SINI: FUNGSI LLM DENGAN DEBUGGING LEBIH BAIK ---
 def analyze_with_llm(context_text, product_name, api_key):
     """Mengirim teks yang sudah diproses ke OpenRouter untuk dianalisis."""
+    llm_model = st.secrets.get("LLM_MODEL")
     prompt = f"""
     Anda adalah asisten ahli analisis harga barang bekas. Tugas Anda adalah menganalisis KONTEKS PENCARIAN berikut untuk menemukan harga pasaran.
 
@@ -107,7 +103,7 @@ def analyze_with_llm(context_text, product_name, api_key):
     3. Berikan rangkuman singkat mengenai harga pasaran dalam format yang mudah dibaca.
     4. Sertakan analisis singkat terkait produk dan harga yang disarankan.
     5. Berikan rekomendasi harga berdasarkan temuan Anda.
-    6. JAWABAN HARUS DALAM BENTUK TEKS BIAASA YANG JELAS DAN INFORMATIF, BUKAN JSON.
+    6. JAWABAN HARUS DALAM BENTUK TEKS BIASA YANG JELAS DAN INFORMATIF, BUKAN JSON.
 
     JANGAN GUNAKAN FORMAT JSON SAMA SEKALI. HANYA BERIKAN TEKS ANALISIS.
     """
@@ -119,30 +115,42 @@ def analyze_with_llm(context_text, product_name, api_key):
                 "Content-Type": "application/json"
             },
             data=json.dumps({
-                "model": st.secrets.get("LLM_MODEL"),
+                "model": llm_model,
                 "messages": [{"role": "user", "content": prompt}],
                 "max_tokens": 800,
                 "temperature": 0.3
             })
         )
         response.raise_for_status()
+        response_data = response.json()
         
-        return response.json()['choices'][0]['message']['content']
+        # Cek jika ada error di dalam respons JSON yang sukses
+        if 'error' in response_data:
+            st.error("API OpenRouter mengembalikan error:")
+            st.json(response_data) # Tampilkan JSON error untuk debugging
+            return None
+
+        return response_data['choices'][0]['message']['content']
 
     except requests.exceptions.RequestException as e:
         st.error(f"Gagal menghubungi OpenRouter API: {e}")
+        st.warning("Pastikan koneksi internet Anda stabil dan API key sudah benar.")
+        # Coba tampilkan respons jika ada, untuk debug
+        if e.response is not None:
+            st.json(e.response.json())
         return None
     except (KeyError, IndexError) as e:
         st.error(f"Gagal mengolah respons dari AI: {e}")
+        st.warning("Struktur respons dari API mungkin telah berubah.")
+        st.json(response.json()) # Tampilkan JSON respons untuk melihat strukturnya
         return None
 
-# --- BAGIAN 3: UI STREAMLIT ---
+# --- BAGIAN 3: UI STREAMLIT (Tidak ada perubahan signifikan) ---
 
 st.set_page_config(page_title="Price Analyzer", layout="wide")
 st.title("💡 AI Price Analyzer")
 st.write("Aplikasi untuk menganalisis harga pasaran barang bekas menggunakan AI.")
 
-# --- Sidebar untuk input ---
 st.sidebar.header("Pengaturan Pencarian")
 category = st.sidebar.selectbox("1. Pilih Jenis Pencarian", ["Barang Bermerek", "Barang Umum", "Scrap"])
 time_filter_options = {"Semua Waktu": "Semua Waktu", "Setahun Terakhir": "qdr:y", "Sebulan Terakhir": "qdr:m", "Seminggu Terakhir": "qdr:w"}
@@ -156,7 +164,6 @@ if category == "Barang Bermerek":
 else:
     use_condition_filter, use_url_filter = False, False
 
-# --- Form Input Utama ---
 with st.form("main_form"):
     if category == "Barang Bermerek":
         st.header("📱 Detail Barang Bermerek")
@@ -179,14 +186,19 @@ with st.form("main_form"):
 
     submitted = st.form_submit_button("Analisis Harga Sekarang!")
 
-# --- ALUR KERJA UTAMA ---
+# --- ⭐ PERUBAHAN DI SINI: ALUR KERJA UTAMA DENGAN PENANGANAN ERROR LENGKAP ---
 if submitted:
     SERPAPI_API_KEY = st.secrets.get("SERPAPI_API_KEY")
     OPENROUTER_API_KEY = st.secrets.get("OPENROUTER_API_KEY")
-    if not SERPAPI_API_KEY or not OPENROUTER_API_KEY:
-        st.error("Harap konfigurasikan SERPAPI_API_KEY dan OPENROUTER_API_KEY di Streamlit Secrets!")
+    LLM_MODEL = st.secrets.get("LLM_MODEL")
+    
+    # 1. Validasi semua kunci API dan konfigurasi di awal
+    if not SERPAPI_API_KEY or not OPENROUTER_API_KEY or not LLM_MODEL:
+        st.error("Harap konfigurasikan SERPAPI_API_KEY, OPENROUTER_API_KEY, dan LLM_MODEL di Streamlit Secrets!")
+        st.info("Contoh LLM_MODEL: `google/gemini-flash-1.5` atau `openai/gpt-3.5-turbo`")
     else:
-        # 1. Bangun Query
+        # Bangun Query
+        params = {}
         if category == "Barang Bermerek":
             params = build_branded_query(brand, model, spec, exclusions, time_filter_value, use_condition_filter, use_url_filter)
         elif category == "Barang Umum":
@@ -195,34 +207,30 @@ if submitted:
             params = build_scrap_query(scrap_type, unit, time_filter_value)
         
         with st.spinner(f"Menganalisis harga untuk '{product_name_display}'... Proses ini bisa memakan waktu 10-20 detik."):
-            # 2. Panggil SerpApi
+            # Langkah 1: Panggil SerpApi
             st.info("Langkah 1/3: Mengambil data pencarian dari API...")
             serpapi_data = search_with_serpapi(params, SERPAPI_API_KEY)
 
             if serpapi_data:
-                # 3. Pra-pemrosesan Teks
+                # Langkah 2: Pra-pemrosesan Teks
                 st.info("Langkah 2/3: Mengekstrak teks relevan untuk dianalisis...")
                 context_text = extract_text_for_llm(serpapi_data)
 
                 if context_text:
-                    # Ekstrak harga dari teks untuk analisis statistik
-                    extracted_prices = extract_prices_from_text(context_text)
-                    
-                    # 4. Panggil OpenRouter (AI)
+                    # Langkah 3: Panggil OpenRouter (AI)
                     st.info("Langkah 3/3: Mengirim data ke AI untuk analisis harga...")
                     ai_analysis = analyze_with_llm(context_text, product_name_display, OPENROUTER_API_KEY)
 
                     if ai_analysis:
-                        # 5. Tampilkan Hasil
+                        # Langkah Terakhir: Tampilkan Hasil
                         st.balloons()
                         st.success("Analisis Harga Selesai!")
                         st.subheader(f"📊 Analisis Harga untuk {product_name_display}")
                         
-                        # Tampilkan analisis dari AI
                         st.markdown("### Analisis AI")
                         st.write(ai_analysis)
                         
-                        # Tampilkan statistik harga yang diekstrak
+                        extracted_prices = extract_prices_from_text(context_text)
                         if extracted_prices:
                             st.markdown("### Statistik Harga yang Ditemukan")
                             
@@ -237,8 +245,17 @@ if submitted:
                             col3.metric("Harga Terendah", f"Rp {int(harga_terendah):,}")
                             col4.metric("Harga Tertinggi", f"Rp {int(harga_tertinggi):,}")
                             
-                            # Tampilkan distribusi harga
                             st.markdown("### Distribusi Harga")
                             st.bar_chart(extracted_prices)
                         else:
-                            st.warning("Tidak dapat menemukan harga yang dapat diekstrak dari data pencarian.")
+                            st.warning("Tidak dapat menemukan angka harga yang dapat diekstrak dari data pencarian.")
+                    
+                    else:
+                        # Ini akan dijalankan jika panggilan AI gagal
+                        st.error("Analisis Gagal: Tidak menerima respons dari AI. Silakan cek log error di atas.")
+                
+                else:
+                    st.error("Ekstraksi Teks Gagal: Tidak ada teks yang bisa diekstrak dari hasil pencarian.")
+            
+            else:
+                st.error("Pengambilan Data Gagal: Tidak menerima data dari SerpAPI.")
