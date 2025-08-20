@@ -1,6 +1,8 @@
 import streamlit as st
 import requests
+import re
 import json
+import numpy as np
 
 # --- BAGIAN 1: FUNGSI-FUNGSI PEMBUAT QUERY ---
 
