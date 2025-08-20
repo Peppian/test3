@@ -16,7 +16,7 @@ def build_general_query(part1, part2, part3, time_filter):
     negative_url_patterns = "-inurl:search -inurl:shop (site:tokopedia.com OR site:shopee.co.id OR olx.co.id)"
     
     # Menggabungkan semua komponen menjadi satu string query yang kuat
-    query = f'{search_keywords} {used_keywords} {negative_keywords} {negative_url_patterns}'
+    query = f'harga {search_keywords} {used_keywords} {negative_keywords} {negative_url_patterns}'
     
     # Membuat dictionary parameter untuk dikirim ke SerpApi
     params = {
