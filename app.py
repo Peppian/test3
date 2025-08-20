@@ -1,6 +1,6 @@
 import streamlit as st
 
-# --- Kumpulan Fungsi Pembuat Query ---
+# --- Kumpulan Fungsi Pembuat Query (Tidak ada perubahan di sini) ---
 
 def build_smartphone_query(brand, model, spec, time_filter):
     """Membangun query optimal untuk kategori Smartphone."""
@@ -8,11 +8,7 @@ def build_smartphone_query(brand, model, spec, time_filter):
     used_keywords = "(bekas|second|seken)"
     negative_keywords = "-BNIB -segel -resmi -baru -official"
     negative_url_patterns = "-inurl:search -inurl:shop"
-
-    # Gabungkan semua bagian
     query = f'{search_keywords} {used_keywords} {negative_keywords} {negative_url_patterns}'
-    
-    # Buat dictionary parameter untuk SerpApi
     params = {
         "q": query.strip(),
         "engine": "google",
@@ -20,29 +16,21 @@ def build_smartphone_query(brand, model, spec, time_filter):
         "hl": "id",
         "location": "Jakarta, Jakarta, Indonesia"
     }
-    
-    # Tambahkan filter waktu jika dipilih
     if time_filter != "Semua Waktu":
         params["tbs"] = time_filter
-        
     return params
 
-
-def build_scrap_query(material, unit, time_filter):
+def build_scrap_query(scrap_type, unit, time_filter):
     """Membangun query optimal untuk kategori Scrap/Limbah."""
-    # Contoh "bahasa" untuk scrap: harga per kg, per liter, dll.
-    search_keywords = f'harga {material} bekas {unit}'
-    
+    search_keywords = f'harga {scrap_type} bekas {unit}'
     params = {
         "q": search_keywords.strip(),
         "engine": "google",
         "gl": "id",
         "hl": "id",
     }
-    
     if time_filter != "Semua Waktu":
         params["tbs"] = time_filter
-        
     return params
 
 # --- UI STREAMLIT ---
@@ -55,9 +43,11 @@ st.write(
 )
 
 st.sidebar.header("Pengaturan Pencarian")
+
+# --- PERUBAHAN 1: Mengubah nama kategori ---
 category = st.sidebar.selectbox(
     "1. Pilih Kategori Barang",
-    ["Smartphone", "Logam Bekas (Scrap)", "Lainnya (Umum)"]
+    ["Smartphone", "Scrap", "Lainnya (Umum)"]
 )
 
 time_filter_options = {
@@ -86,20 +76,28 @@ if category == "Smartphone":
     if st.button("Generate Query"):
         final_params = build_smartphone_query(brand, model, spec, time_filter_value)
 
-elif category == "Logam Bekas (Scrap)":
-    st.header("🔩 Detail Scrap")
-    material = st.text_input("Jenis Material", "Besi Bekas")
-    unit = st.text_input("Satuan Harga", "per kg")
+# --- PERUBAHAN 2: Logika baru untuk kategori "Scrap" ---
+elif category == "Scrap":
+    st.header("♻️ Detail Limbah (Scrap)")
+    
+    # Daftar pilihan jenis limbah
+    scrap_options = [
+        "Besi Tua", "Tembaga", "Aluminium", "Kuningan", 
+        "Aki Bekas", "Kabel Bekas", "Minyak Jelantah", "Oli Bekas", 
+        "Kardus Bekas", "Botol Plastik PET", "Komputer Bekas"
+    ]
+    
+    scrap_type = st.selectbox("Pilih Jenis Limbah", scrap_options)
+    unit = st.text_input("Satuan Harga (Contoh: per kg, per liter, per drum, per unit)", "per kg")
 
     if st.button("Generate Query"):
-        final_params = build_scrap_query(material, unit, time_filter_value)
+        final_params = build_scrap_query(scrap_type, unit, time_filter_value)
         
 elif category == "Lainnya (Umum)":
     st.header("📦 Pencarian Umum")
-    keywords = st.text_input("Masukkan Kata Kunci", "Laptop Lenovo Thinkpad T480 i7 bekas")
+    keywords = st.text_input("Masukkan Kata Kunci", "Meja kantor bekas")
     
     if st.button("Generate Query"):
-        # Untuk umum, kita hanya gabungkan dengan filter waktu
         final_params = {
             "q": keywords,
             "engine": "google",
@@ -109,16 +107,15 @@ elif category == "Lainnya (Umum)":
         if time_filter_value != "Semua Waktu":
             final_params["tbs"] = time_filter_value
 
-# --- Tampilkan Hasil ---
+# --- Tampilkan Hasil (Tidak ada perubahan di sini) ---
 
 if final_params:
     st.balloons()
     st.subheader("✅ Query Siap Digunakan!")
     st.write("Ini adalah parameter yang akan dikirim ke SerpApi. Anda bisa fokus pada nilai `q` untuk diuji coba.")
     
-    # Tampilkan dalam format yang mudah dibaca
     st.json(final_params)
 
     st.subheader("Query untuk Playground SerpApi:")
     st.code(final_params['q'], language='text')
-    st.caption("Salin query di atas dan coba di playground website SerpApi.")
+    st.caption("Salin query di atas dan coba di playground SerpApi.")
