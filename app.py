@@ -11,7 +11,7 @@ def build_general_query(part1, part2, part3, time_filter):
     search_keywords = f'{part1} "{part2}" {part3}'
     
     # Kata kunci standar untuk memastikan hasil yang relevan
-    used_keywords = "(bekas|second|seken)"
+    used_keywords = "jual (bekas|second|seken)"
     negative_keywords = "-BNIB -segel -baru -new"
     negative_url_patterns = "-inurl:search -inurl:shop (site:tokopedia.com OR site:shopee.co.id OR olx.co.id)"
     
