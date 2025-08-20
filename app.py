@@ -40,18 +40,18 @@ def build_common_query(keywords, time_filter):
 # --- BAGIAN 2: FUNGSI-FUNGSI PEMANGGILAN API & PENGOLAHAN DATA ---
 
 def search_with_serpapi(params, api_key):
-    """Melakukan pencarian menggunakan SerpApi."""
+    """Melakukan pencarian menggunakan API."""
     params["api_key"] = api_key
     try:
         response = requests.get("https://serpapi.com/search.json", params=params)
         response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException as e:
-        st.error(f"Gagal menghubungi SerpApi: {e}")
+        st.error(f"Gagal menghubungi API: {e}")
         return None
 
 def extract_text_for_llm(serpapi_data):
-    """Mengekstrak semua teks relevan dari JSON SerpApi menjadi satu string."""
+    """Mengekstrak semua teks relevan dari JSON API menjadi satu string."""
     texts = []
     if 'ai_overview' in serpapi_data and 'text_blocks' in serpapi_data['ai_overview']:
         for block in serpapi_data['ai_overview']['text_blocks']:
@@ -84,11 +84,12 @@ def analyze_with_llm(context_text, product_name, api_key):
     2. Abaikan harga aksesoris atau barang lain yang tidak relevan.
     3. Buat rangkuman singkat mengenai harga pasaran.
     4. Berikan JAWABAN HANYA dalam format JSON yang valid. Jangan tambahkan teks atau penjelasan lain di luar JSON.
+    5. Berikan analisis singkat terkait produk dan harga yang disarankan.
 
     FORMAT JAWABAN JSON:
     {{
-      "harga_ditemukan": [12500000, 12800000],
-      "rangkuman_harga": "Harga pasaran untuk {product_name} umumnya berkisar antara Rp12.000.000 hingga Rp14.000.000."
+      "rangkuman_harga": "Harga pasaran untuk {product_name} umumnya adalah Rp [harga yang disarankan]."
+      "[analisis singkat]
     }}
     """
     try:
@@ -116,7 +117,7 @@ def analyze_with_llm(context_text, product_name, api_key):
 
 st.set_page_config(page_title="Price Analyzer", layout="wide")
 st.title("💡 AI Price Analyzer")
-st.write("Aplikasi untuk menganalisis harga pasaran barang bekas menggunakan SerpApi dan AI.")
+st.write("Aplikasi untuk menganalisis harga pasaran barang bekas menggunakan AI.")
 
 # --- Sidebar untuk input ---
 st.sidebar.header("Pengaturan Pencarian")
@@ -172,7 +173,7 @@ if submitted:
         
         with st.spinner(f"Menganalisis harga untuk '{product_name_display}'... Proses ini bisa memakan waktu 10-20 detik."):
             # 2. Panggil SerpApi
-            st.info("Langkah 1/3: Mengambil data pencarian dari SerpApi...")
+            st.info("Langkah 1/3: Mengambil data pencarian dari API...")
             serpapi_data = search_with_serpapi(params, SERPAPI_API_KEY)
 
             if serpapi_data:
