@@ -7,16 +7,16 @@ def build_branded_query(brand, model, spec, exclusions, time_filter, use_conditi
     Membangun query presisi tinggi khusus untuk BARANG BERMEREK.
     """
     # Model selalu di dalam tanda kutip untuk presisi
-    search_keywords = f'{brand} "{model}" {spec}'
+    search_keywords = f'Jual {brand} "{model}" {spec}'
     
     query_parts = [search_keywords, "(bekas|second|seken)"]
     
     # Filter ditambahkan secara kondisional
     if use_condition_filter:
-        query_parts.append("-BNIB -segel -resmi -baru -official")
+        query_parts.append("-BNIB -segel")
     
     if use_url_filter:
-        query_parts.append("-inurl:search -inurl:shop")
+        query_parts.append("-inurl:search -inurl:shop (site:tokopedia.com OR site:shopee.co.id OR site:olx.co.id)")
         
     # Menambahkan kata kunci pengecualian dari input pengguna
     if exclusions:
