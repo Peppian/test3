@@ -18,7 +18,7 @@ def build_general_query(part1, part2, part3, exclusions, time_filter, category, 
         query_parts.append("-BNIB -segel")
     
     if use_url_filter:
-        query_parts.append("-inurl:search -inurl:shop" (site:tokopedia.com OR site:shopee.co.id OR site:olx.co.id))
+        query_parts.append("-inurl:search -inurl:shop (site:tokopedia.com OR site:shopee.co.id OR site:olx.co.id)")
         
     # --- PENYESUAIAN: Menambahkan kata kunci pengecualian dari input pengguna ---
     if exclusions:
