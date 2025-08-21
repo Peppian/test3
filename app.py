@@ -31,6 +31,34 @@ def build_scrap_query(scrap_type, unit, time_filter):
         params["tbs"] = time_filter
     return params
 
+def build_heavy_equipment_query(alat_type, brand, model, year, time_filter):
+    """Membangun query optimal untuk kategori ALAT BERAT."""
+    # Gabungkan kata kunci utama
+    search_keywords = f'jual {alat_type} {brand} {model} {year}'
+    
+    # Tambahkan filter kondisi dan situs jual beli yang relevan
+    query_parts = [
+        search_keywords,
+        "(bekas|second)",
+        # Fokuskan pencarian pada situs-situs ini
+        "(site:olx.co.id OR site:indotrading.com OR site:alatberat.com OR site:jualo.com)"
+    ]
+    
+    query = " ".join(query_parts)
+    
+    # Siapkan parameter untuk SerpAPI
+    params = {
+        "q": query.strip(), 
+        "engine": "google", 
+        "gl": "id", 
+        "hl": "id"
+    }
+    
+    if time_filter != "Semua Waktu":
+        params["tbs"] = time_filter
+        
+    return params
+
 def build_common_query(keywords, time_filter):
     """Membangun query fleksibel untuk BARANG UMUM."""
     query = f'jual {keywords} (bekas|second|seken)'
@@ -154,7 +182,11 @@ st.title("💡 AI Price Analyzer")
 st.write("Aplikasi untuk menganalisis harga pasaran barang bekas menggunakan AI.")
 
 st.sidebar.header("Pengaturan Pencarian")
-category = st.sidebar.selectbox("1. Pilih Jenis Pencarian", ["Barang Bermerek", "Barang Umum", "Scrap"])
+# Tambahkan "Alat Berat" ke dalam list
+category = st.sidebar.selectbox(
+    "1. Pilih Jenis Pencarian", 
+    ["Barang Bermerek", "Barang Umum", "Scrap", "Alat Berat"]
+) 
 time_filter_options = {"Semua Waktu": "Semua Waktu", "Setahun Terakhir": "qdr:y", "Sebulan Terakhir": "qdr:m", "Seminggu Terakhir": "qdr:w"}
 selected_time_filter = st.sidebar.selectbox("2. Filter Waktu", options=list(time_filter_options.keys()))
 time_filter_value = time_filter_options[selected_time_filter]
@@ -178,6 +210,15 @@ with st.form("main_form"):
         st.header("📦 Detail Barang Umum")
         keywords = st.text_input("Masukkan Nama Barang", "Bonsai Cemara Udang Ukuran Medium")
         product_name_display = keywords
+    elif category == "Alat Berat":
+        st.header("🛠️ Detail Alat Berat") 
+        # Input yang lebih relevan untuk alat berat
+        alat_type = st.text_input("Jenis Alat", "Excavator")
+        brand = st.text_input("Merek", "Komatsu")
+        model = st.text_input("Model / Kapasitas", "PC200-8")
+        year = st.text_input("Tahun (Opsional)", "2015")
+        # Gabungkan semua input menjadi satu nama produk untuk ditampilkan
+        product_name_display = f"{alat_type} {brand} {model} {year}".strip()
     elif category == "Scrap":
         st.header("♻️ Detail Limbah (Scrap)")
         scrap_options = ["Besi Tua", "Tembaga", "Aluminium", "Kuningan", "Aki Bekas", "Minyak Jelantah", "Oli Bekas", "Kardus Bekas", "Botol Plastik PET"]
@@ -205,6 +246,8 @@ if submitted:
             params = build_branded_query(brand, model, spec, exclusions, time_filter_value, use_condition_filter, use_url_filter)
         elif category == "Barang Umum":
             params = build_common_query(keywords, time_filter_value)
+        elif category == "Alat Berat": # <-- TAMBAHKAN INI
+            params = build_heavy_equipment_query(alat_type, brand, model, year, time_filter_value)
         elif category == "Scrap":
             params = build_scrap_query(scrap_type, unit, time_filter_value)
         
