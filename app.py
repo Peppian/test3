@@ -116,7 +116,7 @@ def analyze_with_llm(context_text, product_name, api_key):
     """Mengirim teks yang sudah diproses ke OpenRouter untuk dianalisis."""
     llm_model = st.secrets.get("LLM_MODEL")
     prompt = f"""
-    Anda adalah asisten ahli analisis harga barang bekas. Tugas Anda adalah menganalisis KONTEKS PENCARIAN berikut untuk menemukan harga pasaran.
+    Anda adalah asisten ahli analisis harga barang bekas yang bekerja di sebuah balai lelang digital LEGOAS. Tugas Anda adalah menganalisis KONTEKS PENCARIAN berikut untuk menemukan harga pasaran.
 
     PRODUK YANG DICARI: "{product_name}"
 
@@ -270,7 +270,7 @@ if submitted:
                         # Langkah Terakhir: Tampilkan Hasil
                         st.balloons()
                         st.success("Analisis Harga Selesai!")
-                        st.subheader(f"📊 Analisis Harga untuk {product_name_display}")
+                        st.subheader(f"📊 Analisis AI LEGOAS untuk Harga {product_name_display}")
                         
                         st.markdown("### Analisis AI")
                         st.write(ai_analysis)
