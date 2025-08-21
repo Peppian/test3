@@ -216,7 +216,7 @@ with st.form("main_form"):
         alat_type = st.text_input("Jenis Alat", "Excavator")
         brand = st.text_input("Merek", "Komatsu")
         model = st.text_input("Model / Kapasitas", "PC200-8")
-        year = st.text_input("Tahun (Opsional)", "2015")
+        year = st.text_input("Tahun (Wajib)", "2015")
         # Gabungkan semua input menjadi satu nama produk untuk ditampilkan
         product_name_display = f"{alat_type} {brand} {model} {year}".strip()
     elif category == "Scrap":
