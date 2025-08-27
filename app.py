@@ -9,13 +9,13 @@ import numpy as np
 def build_gadget_query(brand, model, spec, exclusions, time_filter, use_condition_filter, use_url_filter):
     """Membangun query presisi tinggi khusus untuk GADGET."""
     search_keywords = f'jual {brand} "{model}" {spec}'
-    query_parts = [search_keywords, '(bekas|second|seken|"kondisi bekas")']
+    query_parts = [search_keywords]
 
     if use_condition_filter:
-        query_parts.append("-BNIB -segel -baru -resmi -garansi -official -store -casing -charger -aksesoris")
+        query_parts.append("-BNIB -segel")
 
     if use_url_filter:
-        query_parts.append("-inurl:search -inurl:shop (site:tokopedia.com OR site:shopee.co.id OR site:olx.co.id OR site:bukalapak.com OR site:carousell.co.id)")
+        query_parts.append("-inurl:search -inurl:shop (site:tokopedia.com OR site:shopee.co.id) (inurl:bekas OR inurl:second OR inurl:seken OR inurl:2nd)")
 
     if exclusions:
         exclusion_keywords = " ".join([f"-{word.strip()}" for word in exclusions.split(',')])
@@ -52,7 +52,7 @@ def build_scrap_query(scrap_type, unit, time_filter):
 
 def build_common_query(keywords, time_filter):
     """Membangun query fleksibel untuk BARANG UMUM."""
-    query = f'jual {keywords} (bekas|second|seken) -baru -resmi'
+    query = f'jual {keywords} (bekas|second|seken) -BNIB -segel'
     params = {"q": query.strip(), "engine": "google", "gl": "id", "hl": "id"}
     if time_filter != "Semua Waktu":
         params["tbs"] = time_filter
