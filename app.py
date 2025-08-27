@@ -4,7 +4,7 @@ import re
 import json
 import numpy as np
 
-# --- BAGIAN 1: FUNGSI-FUNGSI PEMBUAT QUERY ---
+# --- BAGIAN 1: FUNGSI-FUNGSI PEMBUAT QUERY (Tidak ada perubahan) ---
 
 def build_gadget_query(brand, model, spec, exclusions, time_filter, use_condition_filter, use_url_filter):
     """Membangun query presisi tinggi khusus untuk GADGET."""
@@ -58,7 +58,7 @@ def build_common_query(keywords, time_filter):
         params["tbs"] = time_filter
     return params
 
-# --- BAGIAN 2: FUNGSI-FUNGSI PEMANGGILAN API & PENGOLAHAN DATA ---
+# --- BAGIAN 2: FUNGSI-FUNGSI PEMANGGILAN API & PENGOLAHAN DATA (Tidak ada perubahan) ---
 
 def search_with_serpapi(params, api_key):
     """Melakukan pencarian menggunakan API."""
@@ -155,7 +155,7 @@ def analyze_with_llm(context_text, product_name, api_key):
         st.error(f"Gagal mengolah respons dari AI: {e}"); st.json(response.json())
         return None
 
-# --- BAGIAN 3: UI STREAMLIT ---
+# --- BAGIAN 3: UI STREAMLIT (Tidak ada perubahan) ---
 
 st.set_page_config(page_title="AI Price Analyzer", layout="wide")
 st.title("💡 AI Price Analyzer")
@@ -216,7 +216,7 @@ with st.form("main_form"):
 
     submitted = st.form_submit_button("Analisis Harga Sekarang!")
 
-# --- BAGIAN 4: ALUR KERJA UTAMA ---
+# --- BAGIAN 4: ALUR KERJA UTAMA (DIMODIFIKASI) ---
 if submitted:
     SERPAPI_API_KEY = st.secrets.get("SERPAPI_API_KEY")
     OPENROUTER_API_KEY = st.secrets.get("OPENROUTER_API_KEY")
@@ -251,30 +251,22 @@ if submitted:
                         st.info("Langkah 4/4: Menyiapkan laporan hasil analisis...")
                         st.balloons()
                         st.success("Analisis Harga Selesai!")
-                        st.subheader(f"📊 Analisis AI LEGOAS untuk Harga {product_name_display}")
+                        
+                        # Mengganti ikon subheader agar lebih sesuai (📝/memo daripada 📊/grafik)
+                        st.subheader(f"📝 Analisis AI LEGOAS untuk Harga {product_name_display}")
                         st.markdown("### Rekomendasi & Analisis AI")
                         st.write(ai_analysis)
 
+                        # --- BAGIAN STATISTIK DIHAPUS ---
+                        # Seluruh blok 'if extracted_prices:' yang menampilkan
+                        # metrik dan grafik batang telah dihilangkan.
+                        # Kita hanya mempertahankan pengecekan apakah ada harga atau tidak
+                        # untuk memberikan peringatan jika diperlukan.
+                        
                         extracted_prices = extract_prices_from_text(context_text)
-                        if extracted_prices:
-                            st.markdown("### Statistik Harga dari Data Relevan")
-                            st.caption("Statistik ini dihitung dari semua harga relevan yang ditemukan. Angka ini mungkin berbeda dari rekomendasi AI yang mempertimbangkan konteks tambahan.")
-                            
-                            harga_rata_rata = np.mean(extracted_prices)
-                            harga_median = np.median(extracted_prices)
-                            harga_terendah = np.min(extracted_prices)
-                            harga_tertinggi = np.max(extracted_prices)
+                        if not extracted_prices:
+                            st.info("Catatan: AI tidak menemukan angka harga spesifik dalam hasil pencarian, analisis mungkin bersifat lebih umum.")
 
-                            col1, col2, col3, col4 = st.columns(4)
-                            col1.metric("Harga Rata-rata", f"Rp {int(harga_rata_rata):,}")
-                            col2.metric("Harga Tengah (Median)", f"Rp {int(harga_median):,}")
-                            col3.metric("Harga Terendah", f"Rp {int(harga_terendah):,}")
-                            col4.metric("Harga Tertinggi", f"Rp {int(harga_tertinggi):,}")
-                            
-                            st.markdown("### Distribusi Harga")
-                            st.bar_chart(extracted_prices)
-                        else:
-                            st.warning("Tidak ditemukan data harga numerik yang relevan setelah proses filtering.")
                     else:
                         st.error("Analisis Gagal: Tidak menerima respons dari AI.")
                 else:
