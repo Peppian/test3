@@ -138,7 +138,7 @@ def analyze_with_llm(context_text, product_name, api_key):
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
             data=json.dumps({
                 "model": llm_model, "messages": [{"role": "user", "content": prompt}],
-                "max_tokens": 800, "temperature": 0.2
+                "max_tokens": 1200, "temperature": 0.2
             })
         )
         response.raise_for_status()
