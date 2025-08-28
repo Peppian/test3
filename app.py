@@ -4,7 +4,7 @@ import re
 import json
 import numpy as np
 
-# --- BAGIAN 1: FUNGSI-FUNGSI PEMBUAT QUERY (DIMODIFIKASI) ---
+# --- BAGIAN 1: FUNGSI-FUNGSI PEMBUAT QUERY (Tidak ada perubahan) ---
 
 def build_common_query(keywords, time_filter, use_condition_filter, use_url_filter):
     """Membangun query fleksibel untuk BARANG UMUM."""
@@ -26,11 +26,9 @@ def build_spare_part_query(keywords, time_filter, use_condition_filter, use_url_
     """Membangun query optimal untuk kategori SPARE PART."""
     query_parts = [f'jual {keywords}']
 
-    # Filter kondisi selalu relevan untuk spare part
     if use_condition_filter:
         query_parts.append("(inurl:bekas OR inurl:second OR inurl:seken OR inurl:seperti-baru OR inurl:2nd OR inurl:copotan OR inurl:like-new) -BNIB -segel")
 
-    # Filter situs jual-beli yang spesifik
     if use_url_filter:
         query_parts.append("(site:tokopedia.com OR site:shopee.co.id OR site:monotaro.id OR site:olx.co.id)")
     
@@ -59,14 +57,13 @@ def build_heavy_equipment_query(alat_type, brand, model, year, time_filter, use_
 
 def build_scrap_query(scrap_type, unit, time_filter):
     """Membangun query optimal untuk kategori SCRAP."""
-    # Filter lanjutan tidak terlalu relevan untuk scrap, jadi tidak diimplementasikan di sini
     search_keywords = f'harga {scrap_type} bekas {unit}'
     params = {"q": search_keywords.strip(), "engine": "google", "gl": "id", "hl": "id"}
     if time_filter != "Semua Waktu":
         params["tbs"] = time_filter
     return params
 
-# --- BAGIAN 2: FUNGSI-FUNGSI PEMANGGILAN API & PENGOLAHAN DATA (Tidak ada perubahan) ---
+# --- BAGIAN 2: FUNGSI-FUNGSI PEMANGGILAN API & PENGOLAHAN DATA (Fungsi LLM diperbarui) ---
 
 def search_with_serpapi(params, api_key):
     """Melakukan pencarian menggunakan API."""
@@ -92,7 +89,6 @@ def filter_and_extract_text_for_llm(serpapi_data, product_name):
 
         if any(neg_word in full_text for neg_word in negative_keywords):
             continue
-        # Modifikasi: Cukup beberapa kata kunci utama ada, tidak harus semua
         if not any(main_word in full_text for main_word in main_keywords):
             continue
 
@@ -120,26 +116,36 @@ def extract_prices_from_text(text):
             continue
     return prices
 
-def analyze_with_llm(context_text, product_name, api_key):
-    """Mengirim teks yang sudah diproses ke OpenRouter untuk dianalisis."""
+# --- DIUBAH ---
+def analyze_with_llm(context_text, product_name, api_key, grade):
+    """Mengirim teks yang sudah diproses ke OpenRouter untuk dianalisis dengan memperhitungkan grade."""
     llm_model = st.secrets.get("LLM_MODEL")
+    
+    # Menambahkan instruksi kalkulasi grade ke dalam prompt
     prompt = f"""
-    Anda adalah asisten ahli analisis harga barang bekas yang bekerja di sebuah balai lelang digital LEGOAS. Tugas Anda adalah menganalisis KONTEKS PENCARIAN yang SUDAH DIFILTER berikut untuk menemukan harga pasaran wajar.
+    Anda adalah asisten ahli analisis harga barang bekas yang bekerja di balai lelang digital LEGOAS.
+    Tugas Anda adalah menganalisis KONTEKS PENCARIAN untuk menemukan harga pasaran wajar.
 
     PRODUK YANG DICARI: "{product_name}"
+    GRADE KONDISI: "{grade}"
 
-    KONTEKS PENCARIAN (hanya berisi hasil yang relevan):
+    KONTEKS PENCARIAN:
     ---
     {context_text[:15000]}
     ---
 
     INSTRUKSI UTAMA:
-    1.  Fokus utama Anda adalah pada PRODUK YANG DICARI. Abaikan secara TEGAS semua penyebutan harga untuk produk lain, bahkan jika modelnya mirip.
-    2.  Abaikan juga semua harga yang jelas-jelas untuk aksesoris, suku cadang yang tidak relevan, atau jasa perbaikan.
-    3.  Berdasarkan data yang paling relevan dalam konteks, berikan analisis singkat mengenai kondisi pasar dan variasi harga yang Anda temukan.
-    4.  Berikan satu **rekomendasi harga jual wajar** untuk produk tersebut dalam kondisi bekas layak pakai. Jelaskan secara singkat alasan di balik angka rekomendasi Anda.
-    5.  Gaya bahasa Anda harus profesional, jelas, dan informatif.
-    6.  JAWABAN HARUS DALAM BENTUK TEKS BIASA (PARAGRAF NARASI), BUKAN JSON.
+    1.  Fokus utama Anda adalah pada PRODUK YANG DICARI. Abaikan harga untuk produk atau aksesoris lain.
+    2.  Berdasarkan data, berikan analisis singkat mengenai kondisi pasar dan variasi harga yang Anda temukan.
+    3.  Berikan satu **rekomendasi harga jual wajar** untuk produk tersebut dalam kondisi bekas layak pakai (ini kita sebut sebagai "Harga Grade A"). Jelaskan alasan di balik angka ini.
+    4.  Setelah menentukan Harga Grade A, hitung dan tampilkan harga untuk grade lainnya berdasarkan persentase berikut:
+        -   **Harga Grade A (Kondisi Sangat Baik):** Tampilkan harga rekomendasi Anda.
+        -   **Harga Grade B (Kondisi Baik):** Hitung 94% dari Harga Grade A.
+        -   **Harga Grade C (Kondisi Cukup):** Hitung 80% dari Harga Grade A.
+        -   **Harga Grade D (Kondisi Kurang):** Hitung 58% dari Harga Grade A.
+        -   **Harga Grade E (Kondisi Apa Adanya):** Hitung 23% dari Harga Grade A.
+    5.  Sajikan hasil akhir dalam format yang jelas, dimulai dengan analisis pasar, lalu diikuti oleh daftar harga berdasarkan grade. Beri penekanan (misalnya dengan bold) pada harga yang sesuai dengan **GRADE KONDISI** yang diminta pengguna.
+    6.  JAWABAN HARUS DALAM BENTUK TEKS BIASA, BUKAN JSON.
     """
     try:
         response = requests.post(
@@ -191,6 +197,16 @@ use_url_filter = st.sidebar.checkbox(
 
 with st.form("main_form"):
     product_name_display = ""
+    grade_input = "A" # Default grade
+
+    if category in ["Umum", "Spare Part", "Alat Berat"]:
+        st.header("⭐ Pilih Grade Kondisi Barang")
+        grade_input = st.selectbox(
+            "Grade", 
+            options=["A", "B", "C", "D", "E"],
+            help="Pilih kondisi barang: A (Sangat Baik), B (Baik), C (Cukup), D (Kurang), E (Apa Adanya)."
+        )
+
     if category == "Umum":
         st.header("📦 Detail Barang Umum")
         keywords = st.text_input("Masukkan Nama Barang", "iPhone 14 Pro 256GB", help="Tips: Coba sespesifik mungkin untuk hasil terbaik.")
@@ -235,7 +251,7 @@ if submitted:
         elif category == "Scrap":
             params = build_scrap_query(scrap_type, unit, time_filter_value)
 
-        with st.spinner(f"Menganalisis harga untuk '{product_name_display}'... Proses ini bisa memakan waktu 10-20 detik."):
+        with st.spinner(f"Menganalisis harga untuk '{product_name_display}' (Grade {grade_input if category != 'Scrap' else 'N/A'})..."):
             st.info("Langkah 1/4: Mengambil data pencarian dari API...")
             serpapi_data = search_with_serpapi(params, SERPAPI_API_KEY)
 
@@ -245,7 +261,9 @@ if submitted:
 
                 if context_text:
                     st.info("Langkah 3/4: Mengirim data bersih ke AI untuk analisis harga...")
-                    ai_analysis = analyze_with_llm(context_text, product_name_display, OPENROUTER_API_KEY)
+                    # --- DIUBAH ---
+                    # Melewatkan nilai grade_input ke fungsi analisis AI
+                    ai_analysis = analyze_with_llm(context_text, product_name_display, OPENROUTER_API_KEY, grade_input)
 
                     if ai_analysis:
                         st.info("Langkah 4/4: Menyiapkan laporan hasil analisis...")
