@@ -195,18 +195,13 @@ use_url_filter = st.sidebar.checkbox(
     help="Jika aktif, pencarian akan diprioritaskan pada situs jual-beli utama untuk hasil yang lebih relevan."
 )
 
+# --- DIUBAH ---
+# Alur pengisian form diubah agar Grade menjadi pilihan terakhir
 with st.form("main_form"):
     product_name_display = ""
     grade_input = "A" # Default grade
 
-    if category in ["Umum", "Spare Part", "Alat Berat"]:
-        st.header("⭐ Pilih Grade Kondisi Barang")
-        grade_input = st.selectbox(
-            "Grade", 
-            options=["A", "B", "C", "D", "E"],
-            help="Pilih kondisi barang: A (Sangat Baik), B (Baik), C (Cukup), D (Kurang), E (Apa Adanya)."
-        )
-
+    # Langkah 1: Pengguna mengisi detail barang terlebih dahulu
     if category == "Umum":
         st.header("📦 Detail Barang Umum")
         keywords = st.text_input("Masukkan Nama Barang", "iPhone 14 Pro 256GB", help="Tips: Coba sespesifik mungkin untuk hasil terbaik.")
@@ -230,6 +225,16 @@ with st.form("main_form"):
         unit = st.selectbox("Pilih Satuan Harga", unit_options)
         product_name_display = f"{scrap_type} ({unit})"
 
+    # Langkah 2: Pengguna memilih grade sebagai opsi terakhir (jika bukan Scrap)
+    if category in ["Umum", "Spare Part", "Alat Berat"]:
+        st.header("⭐ Pilih Grade Kondisi Barang")
+        grade_input = st.selectbox(
+            "Grade", 
+            options=["A", "B", "C", "D", "E"],
+            help="Pilih kondisi barang: A (Sangat Baik), B (Baik), C (Cukup), D (Kurang), E (Buruk)."
+        )
+
+    # Langkah 3: Tombol Submit
     submitted = st.form_submit_button("Analisis Harga Sekarang!")
 
 # --- BAGIAN 4: ALUR KERJA UTAMA (DIMODIFIKASI) ---
