@@ -193,7 +193,7 @@ with st.form("main_form"):
     product_name_display = ""
     if category == "Umum":
         st.header("📦 Detail Barang Umum")
-        keywords = st.text_input("Masukkan Nama Barang", "Apple iPhone 14 Pro 256GB", help="Tips: Jadilah sespesifik mungkin untuk hasil terbaik.")
+        keywords = st.text_input("Masukkan Nama Barang", "iPhone 14 Pro 256GB", help="Tips: Coba sespesifik mungkin untuk hasil terbaik.")
         product_name_display = keywords
     elif category == "Spare Part":
         st.header("⚙️ Detail Spare Part")
