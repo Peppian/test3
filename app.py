@@ -4,22 +4,17 @@ import re
 import json
 import numpy as np
 
-# --- BAGIAN 1: FUNGSI-FUNGSI PEMBUAT QUERY (Tidak ada perubahan) ---
+# --- BAGIAN 1: FUNGSI-FUNGSI PEMBUAT QUERY (DIMODIFIKASI) ---
 
-def build_gadget_query(brand, model, spec, exclusions, time_filter, use_condition_filter, use_url_filter):
-    """Membangun query presisi tinggi khusus untuk GADGET."""
-    search_keywords = f'jual {brand} "{model}" {spec}'
-    query_parts = [search_keywords]
-
+def build_common_query(keywords, time_filter, use_condition_filter, use_url_filter):
+    """Membangun query fleksibel untuk BARANG UMUM."""
+    query_parts = [f'jual {keywords}']
+    
     if use_condition_filter:
-        query_parts.append("-BNIB -segel")
-
+        query_parts.append("(bekas|second|seken) -BNIB -segel")
+        
     if use_url_filter:
-        query_parts.append("-inurl:search -inurl:shop (site:tokopedia.com OR site:shopee.co.id) (inurl:bekas OR inurl:second OR inurl:seken OR inurl:2nd)")
-
-    if exclusions:
-        exclusion_keywords = " ".join([f"-{word.strip()}" for word in exclusions.split(',')])
-        query_parts.append(exclusion_keywords)
+        query_parts.append("(site:tokopedia.com OR site:shopee.co.id OR site:olx.co.id OR site:bukalapak.com)")
 
     query = " ".join(query_parts)
     params = {"q": query.strip(), "engine": "google", "gl": "id", "hl": "id", "location": "Jakarta, Jakarta, Indonesia"}
@@ -27,15 +22,35 @@ def build_gadget_query(brand, model, spec, exclusions, time_filter, use_conditio
         params["tbs"] = time_filter
     return params
 
-def build_heavy_equipment_query(alat_type, brand, model, year, time_filter):
+def build_spare_part_query(keywords, time_filter, use_condition_filter, use_url_filter):
+    """Membangun query optimal untuk kategori SPARE PART."""
+    query_parts = [f'jual {keywords}']
+
+    # Filter kondisi selalu relevan untuk spare part
+    if use_condition_filter:
+        query_parts.append("(bekas|second|copotan) -baru")
+
+    # Filter situs jual-beli yang spesifik
+    if use_url_filter:
+        query_parts.append("(site:tokopedia.com OR site:shopee.co.id OR site:monotaro.id OR site:olx.co.id)")
+    
+    query = " ".join(query_parts)
+    params = {"q": query.strip(), "engine": "google", "gl": "id", "hl": "id"}
+    if time_filter != "Semua Waktu":
+        params["tbs"] = time_filter
+    return params
+
+def build_heavy_equipment_query(alat_type, brand, model, year, time_filter, use_condition_filter, use_url_filter):
     """Membangun query optimal untuk kategori ALAT BERAT."""
     search_keywords = f'jual {alat_type} {brand} {model} tahun {year}'
-    query_parts = [
-        search_keywords,
-        "(bekas|second)",
-        "-sewa -rental -disewakan",
-        "(site:olx.co.id OR site:indotrading.com OR site:alatberat.com OR site:jualo.com)"
-    ]
+    query_parts = [search_keywords]
+
+    if use_condition_filter:
+        query_parts.append("(bekas|second) -sewa -rental -disewakan")
+        
+    if use_url_filter:
+        query_parts.append("(site:olx.co.id OR site:indotrading.com OR site:alatberat.com OR site:jualo.com)")
+
     query = " ".join(query_parts)
     params = {"q": query.strip(), "engine": "google", "gl": "id", "hl": "id"}
     if time_filter != "Semua Waktu":
@@ -44,16 +59,9 @@ def build_heavy_equipment_query(alat_type, brand, model, year, time_filter):
 
 def build_scrap_query(scrap_type, unit, time_filter):
     """Membangun query optimal untuk kategori SCRAP."""
+    # Filter lanjutan tidak terlalu relevan untuk scrap, jadi tidak diimplementasikan di sini
     search_keywords = f'harga {scrap_type} bekas {unit}'
     params = {"q": search_keywords.strip(), "engine": "google", "gl": "id", "hl": "id"}
-    if time_filter != "Semua Waktu":
-        params["tbs"] = time_filter
-    return params
-
-def build_common_query(keywords, time_filter):
-    """Membangun query fleksibel untuk BARANG UMUM."""
-    query = f'jual {keywords} (bekas|second|seken) -BNIB -segel'
-    params = {"q": query.strip(), "engine": "google", "gl": "id", "hl": "id"}
     if time_filter != "Semua Waktu":
         params["tbs"] = time_filter
     return params
@@ -84,7 +92,8 @@ def filter_and_extract_text_for_llm(serpapi_data, product_name):
 
         if any(neg_word in full_text for neg_word in negative_keywords):
             continue
-        if not all(main_word in full_text for main_word in main_keywords):
+        # Modifikasi: Cukup beberapa kata kunci utama ada, tidak harus semua
+        if not any(main_word in full_text for main_word in main_keywords):
             continue
 
         texts.append(result.get('title', ''))
@@ -125,10 +134,10 @@ def analyze_with_llm(context_text, product_name, api_key):
     ---
 
     INSTRUKSI UTAMA:
-    1.  Fokus utama Anda adalah pada PRODUK YANG DICARI. Abaikan secara TEGAS semua penyebutan harga untuk produk lain, bahkan jika modelnya mirip (misal: jika mencari "iPhone 14 Pro", abaikan harga "iPhone 14 Pro Max").
-    2.  Abaikan juga semua harga yang jelas-jelas untuk aksesoris (seperti casing, charger), suku cadang, atau jasa perbaikan.
+    1.  Fokus utama Anda adalah pada PRODUK YANG DICARI. Abaikan secara TEGAS semua penyebutan harga untuk produk lain, bahkan jika modelnya mirip.
+    2.  Abaikan juga semua harga yang jelas-jelas untuk aksesoris, suku cadang yang tidak relevan, atau jasa perbaikan.
     3.  Berdasarkan data yang paling relevan dalam konteks, berikan analisis singkat mengenai kondisi pasar dan variasi harga yang Anda temukan.
-    4.  Berikan satu **rekomendasi harga jual wajar** untuk produk tersebut dalam kondisi bekas layak pakai. Jelaskan secara singkat alasan di balik angka rekomendasi Anda (misal: "berdasarkan beberapa iklan yang menawarkan di kisaran X hingga Y").
+    4.  Berikan satu **rekomendasi harga jual wajar** untuk produk tersebut dalam kondisi bekas layak pakai. Jelaskan secara singkat alasan di balik angka rekomendasi Anda.
     5.  Gaya bahasa Anda harus profesional, jelas, dan informatif.
     6.  JAWABAN HARUS DALAM BENTUK TEKS BIASA (PARAGRAF NARASI), BUKAN JSON.
     """
@@ -155,7 +164,7 @@ def analyze_with_llm(context_text, product_name, api_key):
         st.error(f"Gagal mengolah respons dari AI: {e}"); st.json(response.json())
         return None
 
-# --- BAGIAN 3: UI STREAMLIT (Tidak ada perubahan) ---
+# --- BAGIAN 3: UI STREAMLIT (DIMODIFIKASI) ---
 
 st.set_page_config(page_title="AI Price Analyzer", layout="wide")
 st.title("💡 AI Price Analyzer")
@@ -164,37 +173,32 @@ st.write("Aplikasi untuk menganalisis harga pasaran barang bekas menggunakan AI.
 st.sidebar.header("Pengaturan Pencarian")
 category = st.sidebar.selectbox(
     "1. Pilih Kategori Barang",
-    ["Gadget", "Alat Berat", "Barang Umum", "Scrap"]
+    ["Umum", "Spare Part", "Alat Berat", "Scrap"]
 )
 time_filter_options = {"Semua Waktu": "Semua Waktu", "Setahun Terakhir": "qdr:y", "Sebulan Terakhir": "qdr:m", "Seminggu Terakhir": "qdr:w"}
 selected_time_filter = st.sidebar.selectbox("2. Filter Waktu", options=list(time_filter_options.keys()))
 time_filter_value = time_filter_options[selected_time_filter]
 
-if category == "Gadget":
-    st.sidebar.subheader("Filter Lanjutan (Gadget)")
-    use_condition_filter = st.sidebar.checkbox(
-        "Fokus Barang Bekas", value=True,
-        help="Jika aktif, AI akan fokus mencari barang bekas dan mengabaikan iklan barang baru, segel, atau bergaransi resmi."
-    )
-    use_url_filter = st.sidebar.checkbox(
-        "Fokus Situs Jual-Beli", value=True,
-        help="Jika aktif, pencarian akan diprioritaskan pada situs jual-beli utama (Tokopedia, OLX, dll) untuk hasil yang lebih relevan."
-    )
-else:
-    use_condition_filter, use_url_filter = False, False
+st.sidebar.subheader("Filter Lanjutan")
+use_condition_filter = st.sidebar.checkbox(
+    "Fokus Barang Bekas", value=True,
+    help="Jika aktif, AI akan fokus mencari barang bekas dan mengabaikan iklan barang baru atau segel."
+)
+use_url_filter = st.sidebar.checkbox(
+    "Fokus Situs Jual-Beli", value=True,
+    help="Jika aktif, pencarian akan diprioritaskan pada situs jual-beli utama untuk hasil yang lebih relevan."
+)
 
 with st.form("main_form"):
     product_name_display = ""
-    if category == "Gadget":
-        st.header("📱 Detail Gadget")
-        brand = st.text_input("Merek", "Apple")
-        model = st.text_input("Model / Seri", "iPhone 14 Pro")
-        spec = st.text_input("Spesifikasi (Opsional)", placeholder="Contoh: 256GB, Inter, Blue Titanium")
-        exclusions = st.text_input(
-            "Kecualikan Kata (pisahkan koma)", "Max, Plus, casing, charger",
-            help="Masukkan kata kunci yang TIDAK Anda inginkan. Contoh: 'Max, Plus' untuk menghindari iPhone 14 Pro Max/Plus."
-        )
-        product_name_display = f"{brand} {model} {spec}".strip()
+    if category == "Umum":
+        st.header("📦 Detail Barang Umum")
+        keywords = st.text_input("Masukkan Nama Barang", "Apple iPhone 14 Pro 256GB", help="Tips: Jadilah sespesifik mungkin untuk hasil terbaik.")
+        product_name_display = keywords
+    elif category == "Spare Part":
+        st.header("⚙️ Detail Spare Part")
+        keywords = st.text_input("Masukkan Nama Spare Part", "Busi Honda Vario 125", help="Contoh: 'Kampas rem Avanza', 'Filter oli Xenia 1.3'")
+        product_name_display = keywords
     elif category == "Alat Berat":
         st.header("🛠️ Detail Alat Berat")
         alat_type = st.text_input("Jenis Alat", "Excavator")
@@ -202,10 +206,6 @@ with st.form("main_form"):
         model = st.text_input("Model / Kapasitas", "PC200-8")
         year = st.text_input("Tahun (Wajib)", "2015")
         product_name_display = f"{alat_type} {brand} {model} {year}".strip()
-    elif category == "Barang Umum":
-        st.header("📦 Detail Barang Umum")
-        keywords = st.text_input("Masukkan Nama Barang", "Bonsai Cemara Udang Ukuran Medium", help="Tips: Jadilah sespesifik mungkin untuk hasil terbaik.")
-        product_name_display = keywords
     elif category == "Scrap":
         st.header("♻️ Detail Limbah (Scrap)")
         scrap_options = ["Besi Tua", "Tembaga", "Aluminium", "Kuningan", "Aki Bekas", "Minyak Jelantah", "Oli Bekas", "Kardus Bekas", "Botol Plastik PET"]
@@ -226,12 +226,12 @@ if submitted:
         st.error("Harap konfigurasikan SERPAPI_API_KEY, OPENROUTER_API_KEY, dan LLM_MODEL di Streamlit Secrets!")
     else:
         params = {}
-        if category == "Gadget":
-            params = build_gadget_query(brand, model, spec, exclusions, time_filter_value, use_condition_filter, use_url_filter)
+        if category == "Umum":
+            params = build_common_query(keywords, time_filter_value, use_condition_filter, use_url_filter)
+        elif category == "Spare Part":
+            params = build_spare_part_query(keywords, time_filter_value, use_condition_filter, use_url_filter)
         elif category == "Alat Berat":
-            params = build_heavy_equipment_query(alat_type, brand, model, year, time_filter_value)
-        elif category == "Barang Umum":
-            params = build_common_query(keywords, time_filter_value)
+            params = build_heavy_equipment_query(alat_type, brand, model, year, time_filter_value, use_condition_filter, use_url_filter)
         elif category == "Scrap":
             params = build_scrap_query(scrap_type, unit, time_filter_value)
 
@@ -252,21 +252,13 @@ if submitted:
                         st.balloons()
                         st.success("Analisis Harga Selesai!")
                         
-                        # Mengganti ikon subheader agar lebih sesuai (📝/memo daripada 📊/grafik)
                         st.subheader(f"📝 Analisis AI LEGOAS untuk Harga {product_name_display}")
                         st.markdown("### Rekomendasi & Analisis AI")
                         st.write(ai_analysis)
 
-                        # --- BAGIAN STATISTIK DIHAPUS ---
-                        # Seluruh blok 'if extracted_prices:' yang menampilkan
-                        # metrik dan grafik batang telah dihilangkan.
-                        # Kita hanya mempertahankan pengecekan apakah ada harga atau tidak
-                        # untuk memberikan peringatan jika diperlukan.
-                        
                         extracted_prices = extract_prices_from_text(context_text)
                         if not extracted_prices:
                             st.info("Catatan: AI tidak menemukan angka harga spesifik dalam hasil pencarian, analisis mungkin bersifat lebih umum.")
-
                     else:
                         st.error("Analisis Gagal: Tidak menerima respons dari AI.")
                 else:
