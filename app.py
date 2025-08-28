@@ -11,10 +11,10 @@ def build_common_query(keywords, time_filter, use_condition_filter, use_url_filt
     query_parts = [f'jual {keywords}']
     
     if use_condition_filter:
-        query_parts.append("(bekas|second|seken) -BNIB -segel")
+        query_parts.append("(inurl:bekas OR inurl:second OR inurl:seken OR inurl:"seperti baru" OR inurl:2nd) -BNIB -segel")
         
     if use_url_filter:
-        query_parts.append("(site:tokopedia.com OR site:shopee.co.id OR site:olx.co.id OR site:bukalapak.com)")
+        query_parts.append("(site:tokopedia.com OR site:shopee.co.id)")
 
     query = " ".join(query_parts)
     params = {"q": query.strip(), "engine": "google", "gl": "id", "hl": "id", "location": "Jakarta, Jakarta, Indonesia"}
@@ -28,7 +28,7 @@ def build_spare_part_query(keywords, time_filter, use_condition_filter, use_url_
 
     # Filter kondisi selalu relevan untuk spare part
     if use_condition_filter:
-        query_parts.append("(bekas|second|copotan) -baru")
+        query_parts.append("(inurl:bekas OR inurl:second OR inurl:seken OR inurl:"seperti baru" OR inurl:2nd OR inurl:copotan) -BNIB -segel")
 
     # Filter situs jual-beli yang spesifik
     if use_url_filter:
