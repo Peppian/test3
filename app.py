@@ -194,18 +194,18 @@ with st.form("main_form"):
     if category == "Umum":
         st.header("📦 Detail Barang Umum")
         keywords = st.text_input("Masukkan Nama Barang", "iPhone 14 Pro 256GB", help="Tips: Coba sespesifik mungkin untuk hasil terbaik.")
-        product_name_display = keywords
+        product_name_display = keywords.lower()
     elif category == "Spare Part":
         st.header("⚙️ Detail Spare Part")
         keywords = st.text_input("Masukkan Nama Spare Part", "Busi Honda Vario 125", help="Contoh: 'Kampas rem Avanza', 'Filter oli Xenia 1.3'")
-        product_name_display = keywords
+        product_name_display = keywords.lower()
     elif category == "Alat Berat":
         st.header("🛠️ Detail Alat Berat")
         alat_type = st.text_input("Jenis Alat", "Excavator")
         brand = st.text_input("Merek", "Komatsu")
         model = st.text_input("Model / Kapasitas", "PC200-8")
         year = st.text_input("Tahun (Wajib)", "2015")
-        product_name_display = f"{alat_type} {brand} {model} {year}".strip()
+        product_name_display = f"{alat_type} {brand} {model} {year}".strip().lower()
     elif category == "Scrap":
         st.header("♻️ Detail Limbah (Scrap)")
         scrap_options = ["Besi Tua", "Tembaga", "Aluminium", "Kuningan", "Aki Bekas", "Minyak Jelantah", "Oli Bekas", "Kardus Bekas", "Botol Plastik PET"]
